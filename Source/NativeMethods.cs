@@ -122,20 +122,10 @@ namespace ZenPeek
                 gui.cbSize = Marshal.SizeOf(gui);
                 if (GetGUIThreadInfo(tid, ref gui))
                 {
-                    // Caret is active (user is typing in text box, renaming a file, or in search bar)
+                    // Caret is active: user is actively editing text (typing in search bar, renaming a file, etc.)
                     if (gui.hwndCaret != IntPtr.Zero)
                     {
                         return true;
-                    }
-
-                    if (gui.hwndFocus != IntPtr.Zero)
-                    {
-                        string focusClass = GetClassName(gui.hwndFocus);
-                        if (focusClass.IndexOf("Edit", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            focusClass.IndexOf("SearchBox", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            return true;
-                        }
                     }
                 }
             }

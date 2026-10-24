@@ -18,39 +18,49 @@ namespace ZenPeek
             try
             {
                 Type shellType = Type.GetTypeFromProgID("Shell.Application");
-                if (shellType == null) return null;
+                if (shellType == null)
+                {
+                    Logger.Log("Shell.Application COM type not found.");
+                    return null;
+                }
 
                 dynamic shell = Activator.CreateInstance(shellType);
                 dynamic windows = shell.Windows();
 
-                // 1. If Desktop is focused, query Desktop folder view
+                // 1. If Desktop is focused, prioritize Desktop view
                 if (isDesktop)
                 {
                     string desktopPath = GetDesktopSelection(windows);
                     if (!string.IsNullOrEmpty(desktopPath))
                     {
+                        Logger.Log("Found Desktop selection: " + desktopPath);
                         return desktopPath;
                     }
                 }
 
-                // 2. Query File Explorer selection
+                // 2. Query File Explorer selection matching active window
                 string explorerPath = GetExplorerSelection(windows, fgHwnd);
                 if (!string.IsNullOrEmpty(explorerPath))
                 {
+                    Logger.Log("Found Explorer selection: " + explorerPath);
                     return explorerPath;
                 }
 
-                // 3. Fallback: If Explorer wasn't matched, check Desktop
+                // 3. Global fallback: check Desktop if not already checked
                 if (!isDesktop)
                 {
                     string fallbackDesktop = GetDesktopSelection(windows);
                     if (!string.IsNullOrEmpty(fallbackDesktop))
                     {
+                        Logger.Log("Found fallback Desktop selection: " + fallbackDesktop);
                         return fallbackDesktop;
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log("GetSelectedFilePath exception: " + ex.Message);
+            }
 
             return null;
         }
@@ -87,7 +97,10 @@ namespace ZenPeek
                     catch { }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log("GetDesktopSelection exception: " + ex.Message);
+            }
 
             return null;
         }
@@ -131,7 +144,7 @@ namespace ZenPeek
                             }
                         }
 
-                        // If only one window is open and user is in Explorer, match it
+                        // If single explorer window open, match it
                         if (!isMatch && count == 1)
                         {
                             isMatch = true;
@@ -198,8 +211,31 @@ namespace ZenPeek
                     }
                     catch { }
                 }
+
+                // Final fallback: Check any open window's FocusedItem
+                for (int i = 0; i < count; i++)
+                {
+                    try
+                    {
+                        dynamic window = windows.Item(i);
+                        if (window == null) continue;
+                        dynamic doc = window.Document;
+                        if (doc != null)
+                        {
+                            dynamic focused = doc.FocusedItem;
+                            if (focused != null && !string.IsNullOrEmpty(focused.Path))
+                            {
+                                return focused.Path;
+                            }
+                        }
+                    }
+                    catch { }
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log("GetExplorerSelection exception: " + ex.Message);
+            }
 
             return null;
         }

@@ -37,6 +37,7 @@ namespace ZenPeek
                 return;
             }
 
+            Logger.Log("Zen Peek starting... PID=" + Process.GetCurrentProcess().Id);
             App app = new App();
             app.Run();
         }
@@ -54,6 +55,7 @@ namespace ZenPeek
             {
                 _hookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _hookProc, NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
             }
+            Logger.Log("Keyboard hook installed. HookId=" + _hookId);
 
             SetupTrayIcon();
 
@@ -81,14 +83,17 @@ namespace ZenPeek
 
                 if (vkCode == NativeMethods.VK_SPACE)
                 {
+                    Logger.Log("Space key intercepted.");
+
                     // 1. If preview window is open, close it (toggle behavior)
                     if (_previewWindow != null && _previewWindow.IsVisible)
                     {
+                        Logger.Log("PreviewWindow was visible -> closing.");
                         Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
                         return (IntPtr)1; // Suppress space
                     }
 
-                    // 2. Check if Explorer or Desktop has focus
+                    // 2. Check foreground window
                     IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
                     if (fgHwnd != IntPtr.Zero)
                     {
@@ -115,12 +120,17 @@ namespace ZenPeek
                             }
                         }
 
+                        Logger.Log(string.Format("Foreground HWND=0x{0:X}, Class='{1}', isDesktop={2}, isExplorer={3}",
+                            fgHwnd.ToInt64(), className, isDesktop, isExplorer));
+
                         if (isDesktop || isExplorer)
                         {
-                            // If user is editing text (typing in search bar, renaming a file with F2), do not intercept
+                            // If user is actively typing in a search bar or renaming a file with caret visible, do not intercept
                             if (!NativeMethods.IsUserEditingText(fgHwnd))
                             {
                                 string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                Logger.Log("Selected file path: " + (selectedPath ?? "(null)"));
+
                                 if (!string.IsNullOrEmpty(selectedPath))
                                 {
                                     Dispatcher.BeginInvoke(new Action(() =>
@@ -130,6 +140,10 @@ namespace ZenPeek
                                     return (IntPtr)1; // Suppress space
                                 }
                             }
+                            else
+                            {
+                                Logger.Log("User is editing text (caret active), passing Space through.");
+                            }
                         }
                     }
                 }
@@ -137,6 +151,7 @@ namespace ZenPeek
                 {
                     if (_previewWindow != null && _previewWindow.IsVisible)
                     {
+                        Logger.Log("Escape key intercepted -> closing preview.");
                         Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
                         return (IntPtr)1; // Suppress escape
                     }
@@ -276,7 +291,6 @@ namespace ZenPeek
 
             _trayIcon.ContextMenuStrip = menu;
 
-            // Show initial balloon tip to inform user
             try
             {
                 _trayIcon.ShowBalloonTip(2500, "Zen Peek Aktif ☯️", "Masaüstünde veya Dosya Gezgini'nde bir dosyayı seçip Boşluk (Space) tuşuna basın!", ToolTipIcon.Info);
@@ -303,6 +317,8 @@ namespace ZenPeek
 
         private void ExitApplication()
         {
+            Logger.Log("Zen Peek exiting...");
+
             if (_hookId != IntPtr.Zero)
             {
                 NativeMethods.UnhookWindowsHookEx(_hookId);

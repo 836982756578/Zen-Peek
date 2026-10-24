@@ -141,7 +141,7 @@ namespace ZenPeek
             };
             openBtn.Click += (s, e) =>
             {
-                if (!string.IsNullOrEmpty(_currentFilePath) && (File.Exists(_currentFilePath) || Directory.Exists(_currentFilePath)))
+                if (!string.IsNullOrEmpty(_currentFilePath))
                 {
                     try { Process.Start(new ProcessStartInfo(_currentFilePath) { UseShellExecute = true }); } catch { }
                     ClosePreview();
@@ -193,11 +193,12 @@ namespace ZenPeek
 
         public void ShowFile(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || (!File.Exists(filePath) && !Directory.Exists(filePath)))
+            if (string.IsNullOrEmpty(filePath))
             {
                 return;
             }
 
+            Logger.Log("PreviewWindow.ShowFile called for: " + filePath);
             _currentFilePath = filePath;
             _titleBlock.Text = Path.GetFileName(filePath);
 
@@ -207,7 +208,7 @@ namespace ZenPeek
                 {
                     ShowDirectoryPreview(filePath);
                 }
-                else
+                else if (File.Exists(filePath))
                 {
                     FileInfo fi = new FileInfo(filePath);
                     string ext = fi.Extension.ToLower();
@@ -231,12 +232,18 @@ namespace ZenPeek
                         ShowGenericPreview(filePath, fi);
                     }
                 }
+                else
+                {
+                    // Virtual or archive path (e.g. inside a zip archive or special shell folder)
+                    ShowVirtualOrArchivePath(filePath);
+                }
             }
             catch (Exception ex)
             {
+                Logger.Log("ShowFile exception: " + ex.Message);
                 _contentHost.Content = new TextBlock
                 {
-                    Text = "Önizleme oluşturulamadı: " + ex.Message,
+                    Text = "Önizleme yüklenirken hata: " + ex.Message,
                     Foreground = Brushes.Tomato,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
@@ -302,7 +309,6 @@ namespace ZenPeek
             }
             catch
             {
-                // Fallback to generic preview if WIC codec is not available
                 ShowGenericPreview(filePath, fi);
             }
         }
@@ -452,6 +458,46 @@ namespace ZenPeek
                 Foreground = new SolidColorBrush(Color.FromRgb(160, 165, 180)),
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 12)
+            });
+
+            _contentHost.Content = sp;
+        }
+
+        private void ShowVirtualOrArchivePath(string virtualPath)
+        {
+            _infoBlock.Text = "Arşiv / Özel Konum";
+
+            StackPanel sp = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "📦",
+                FontSize = 56,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = Path.GetFileName(virtualPath),
+                FontSize = 15,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 4)
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Bu dosya bir ZIP veya arşiv içerisinde görüntüleniyor.\nTam içerik önizlemesi için lütfen arşivi klasöre çıkartın.",
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(190, 195, 210)),
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 12)
             });
 
             _contentHost.Content = sp;
