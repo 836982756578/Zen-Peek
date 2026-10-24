@@ -97,7 +97,7 @@ namespace ZenPeek
 
                     if (vkCode == NativeMethods.VK_SPACE)
                     {
-                        Logger.Log("Space key intercepted.");
+                        Logger.Log("Space key intercepted in HookCallback.");
 
                         // 1. If preview window is open, close it (toggle behavior)
                         if (_previewWindow != null && _previewWindow.IsVisible)
@@ -107,7 +107,7 @@ namespace ZenPeek
                             return (IntPtr)1; // Suppress space
                         }
 
-                        // 2. Check foreground window
+                        // 2. Check foreground window (Pure Win32, no COM)
                         IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
                         if (fgHwnd != IntPtr.Zero)
                         {
@@ -142,17 +142,29 @@ namespace ZenPeek
                                 // If user is actively typing in a search bar or renaming a file with caret visible, do not intercept
                                 if (!NativeMethods.IsUserEditingText(fgHwnd))
                                 {
-                                    string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
-                                    Logger.Log("Selected file path: " + (selectedPath ?? "(null)"));
-
-                                    if (!string.IsNullOrEmpty(selectedPath))
+                                    Logger.Log("Deferring COM selection query via Dispatcher to prevent RPC_E_CANTCALLOUT_ININPUTSYNCCALL.");
+                                    
+                                    // CRITICAL: Defer the COM call to the Dispatcher so the hook procedure returns immediately.
+                                    // This prevents the 0x8001010D (RPC_E_CANTCALLOUT_ININPUTSYNCCALL) error in COM!
+                                    Dispatcher.BeginInvoke(new Action(() =>
                                     {
-                                        Dispatcher.BeginInvoke(new Action(() =>
+                                        try
                                         {
-                                            _previewWindow.ShowFile(selectedPath);
-                                        }));
-                                        return (IntPtr)1; // Suppress space
-                                    }
+                                            string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                            Logger.Log("Async Selected file path: " + (selectedPath ?? "(null)"));
+
+                                            if (!string.IsNullOrEmpty(selectedPath))
+                                            {
+                                                _previewWindow.ShowFile(selectedPath);
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.Log("Dispatcher selection error: " + ex);
+                                        }
+                                    }));
+
+                                    return (IntPtr)1; // Suppress space immediately so hook procedure finishes
                                 }
                                 else
                                 {
