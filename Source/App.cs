@@ -38,6 +38,12 @@ namespace ZenPeek
             }
 
             Logger.Log("Zen Peek starting... PID=" + Process.GetCurrentProcess().Id);
+
+            AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
+            {
+                Logger.Log("FATAL AppDomain UnhandledException: " + ev.ExceptionObject);
+            };
+
             App app = new App();
             app.Run();
         }
@@ -46,6 +52,12 @@ namespace ZenPeek
         {
             base.OnStartup(e);
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            DispatcherUnhandledException += (s, ev) =>
+            {
+                Logger.Log("DispatcherUnhandledException caught: " + ev.Exception);
+                ev.Handled = true; // Prevent crash
+            };
 
             _previewWindow = new PreviewWindow();
 
@@ -77,91 +89,25 @@ namespace ZenPeek
 
         private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && (wParam == (IntPtr)NativeMethods.WM_KEYDOWN || wParam == (IntPtr)NativeMethods.WM_SYSKEYDOWN))
+            try
             {
-                int vkCode = Marshal.ReadInt32(lParam);
-
-                if (vkCode == NativeMethods.VK_SPACE)
+                if (nCode >= 0 && (wParam == (IntPtr)NativeMethods.WM_KEYDOWN || wParam == (IntPtr)NativeMethods.WM_SYSKEYDOWN))
                 {
-                    Logger.Log("Space key intercepted.");
+                    int vkCode = Marshal.ReadInt32(lParam);
 
-                    // 1. If preview window is open, close it (toggle behavior)
-                    if (_previewWindow != null && _previewWindow.IsVisible)
+                    if (vkCode == NativeMethods.VK_SPACE)
                     {
-                        Logger.Log("PreviewWindow was visible -> closing.");
-                        Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
-                        return (IntPtr)1; // Suppress space
-                    }
+                        Logger.Log("Space key intercepted.");
 
-                    // 2. Check foreground window
-                    IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
-                    if (fgHwnd != IntPtr.Zero)
-                    {
-                        string className = NativeMethods.GetClassName(fgHwnd);
-                        bool isDesktop = className == "Progman" || className == "WorkerW";
-                        bool isExplorer = className == "CabinetWClass" || className == "ExploreWClass";
-
-                        if (!isDesktop && !isExplorer)
+                        // 1. If preview window is open, close it (toggle behavior)
+                        if (_previewWindow != null && _previewWindow.IsVisible)
                         {
-                            IntPtr root = NativeMethods.GetAncestor(fgHwnd, NativeMethods.GA_ROOT);
-                            if (root != IntPtr.Zero && root != fgHwnd)
-                            {
-                                string rootClass = NativeMethods.GetClassName(root);
-                                if (rootClass == "CabinetWClass" || rootClass == "ExploreWClass")
-                                {
-                                    isExplorer = true;
-                                    fgHwnd = root;
-                                }
-                                else if (rootClass == "Progman" || rootClass == "WorkerW")
-                                {
-                                    isDesktop = true;
-                                    fgHwnd = root;
-                                }
-                            }
+                            Logger.Log("PreviewWindow was visible -> closing.");
+                            Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
+                            return (IntPtr)1; // Suppress space
                         }
 
-                        Logger.Log(string.Format("Foreground HWND=0x{0:X}, Class='{1}', isDesktop={2}, isExplorer={3}",
-                            fgHwnd.ToInt64(), className, isDesktop, isExplorer));
-
-                        if (isDesktop || isExplorer)
-                        {
-                            // If user is actively typing in a search bar or renaming a file with caret visible, do not intercept
-                            if (!NativeMethods.IsUserEditingText(fgHwnd))
-                            {
-                                string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
-                                Logger.Log("Selected file path: " + (selectedPath ?? "(null)"));
-
-                                if (!string.IsNullOrEmpty(selectedPath))
-                                {
-                                    Dispatcher.BeginInvoke(new Action(() =>
-                                    {
-                                        _previewWindow.ShowFile(selectedPath);
-                                    }));
-                                    return (IntPtr)1; // Suppress space
-                                }
-                            }
-                            else
-                            {
-                                Logger.Log("User is editing text (caret active), passing Space through.");
-                            }
-                        }
-                    }
-                }
-                else if (vkCode == NativeMethods.VK_ESCAPE)
-                {
-                    if (_previewWindow != null && _previewWindow.IsVisible)
-                    {
-                        Logger.Log("Escape key intercepted -> closing preview.");
-                        Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
-                        return (IntPtr)1; // Suppress escape
-                    }
-                }
-                else if (vkCode == NativeMethods.VK_UP || vkCode == NativeMethods.VK_DOWN ||
-                         vkCode == NativeMethods.VK_LEFT || vkCode == NativeMethods.VK_RIGHT)
-                {
-                    if (_previewWindow != null && _previewWindow.IsVisible)
-                    {
-                        // File navigation with arrow keys while preview window is active
+                        // 2. Check foreground window
                         IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
                         if (fgHwnd != IntPtr.Zero)
                         {
@@ -172,7 +118,7 @@ namespace ZenPeek
                             if (!isDesktop && !isExplorer)
                             {
                                 IntPtr root = NativeMethods.GetAncestor(fgHwnd, NativeMethods.GA_ROOT);
-                                if (root != IntPtr.Zero)
+                                if (root != IntPtr.Zero && root != fgHwnd)
                                 {
                                     string rootClass = NativeMethods.GetClassName(root);
                                     if (rootClass == "CabinetWClass" || rootClass == "ExploreWClass")
@@ -188,27 +134,100 @@ namespace ZenPeek
                                 }
                             }
 
+                            Logger.Log(string.Format("Foreground HWND=0x{0:X}, Class='{1}', isDesktop={2}, isExplorer={3}",
+                                fgHwnd.ToInt64(), className, isDesktop, isExplorer));
+
                             if (isDesktop || isExplorer)
                             {
-                                System.Windows.Threading.DispatcherTimer navTimer = new System.Windows.Threading.DispatcherTimer();
-                                navTimer.Interval = TimeSpan.FromMilliseconds(75);
-                                navTimer.Tick += (s, e) =>
+                                // If user is actively typing in a search bar or renaming a file with caret visible, do not intercept
+                                if (!NativeMethods.IsUserEditingText(fgHwnd))
                                 {
-                                    navTimer.Stop();
-                                    if (_previewWindow != null && _previewWindow.IsVisible)
+                                    string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                    Logger.Log("Selected file path: " + (selectedPath ?? "(null)"));
+
+                                    if (!string.IsNullOrEmpty(selectedPath))
                                     {
-                                        string newPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
-                                        if (!string.IsNullOrEmpty(newPath) && newPath != _previewWindow.CurrentFilePath)
+                                        Dispatcher.BeginInvoke(new Action(() =>
                                         {
-                                            _previewWindow.ShowFile(newPath);
+                                            _previewWindow.ShowFile(selectedPath);
+                                        }));
+                                        return (IntPtr)1; // Suppress space
+                                    }
+                                }
+                                else
+                                {
+                                    Logger.Log("User is editing text (caret active), passing Space through.");
+                                }
+                            }
+                        }
+                    }
+                    else if (vkCode == NativeMethods.VK_ESCAPE)
+                    {
+                        if (_previewWindow != null && _previewWindow.IsVisible)
+                        {
+                            Logger.Log("Escape key intercepted -> closing preview.");
+                            Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
+                            return (IntPtr)1; // Suppress escape
+                        }
+                    }
+                    else if (vkCode == NativeMethods.VK_UP || vkCode == NativeMethods.VK_DOWN ||
+                             vkCode == NativeMethods.VK_LEFT || vkCode == NativeMethods.VK_RIGHT)
+                    {
+                        if (_previewWindow != null && _previewWindow.IsVisible)
+                        {
+                            // File navigation with arrow keys while preview window is active
+                            IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
+                            if (fgHwnd != IntPtr.Zero)
+                            {
+                                string className = NativeMethods.GetClassName(fgHwnd);
+                                bool isDesktop = className == "Progman" || className == "WorkerW";
+                                bool isExplorer = className == "CabinetWClass" || className == "ExploreWClass";
+
+                                if (!isDesktop && !isExplorer)
+                                {
+                                    IntPtr root = NativeMethods.GetAncestor(fgHwnd, NativeMethods.GA_ROOT);
+                                    if (root != IntPtr.Zero)
+                                    {
+                                        string rootClass = NativeMethods.GetClassName(root);
+                                        if (rootClass == "CabinetWClass" || rootClass == "ExploreWClass")
+                                        {
+                                            isExplorer = true;
+                                            fgHwnd = root;
+                                        }
+                                        else if (rootClass == "Progman" || rootClass == "WorkerW")
+                                        {
+                                            isDesktop = true;
+                                            fgHwnd = root;
                                         }
                                     }
-                                };
-                                navTimer.Start();
+                                }
+
+                                if (isDesktop || isExplorer)
+                                {
+                                    System.Windows.Threading.DispatcherTimer navTimer = new System.Windows.Threading.DispatcherTimer();
+                                    navTimer.Interval = TimeSpan.FromMilliseconds(75);
+                                    navTimer.Tick += (s, e) =>
+                                    {
+                                        navTimer.Stop();
+                                        if (_previewWindow != null && _previewWindow.IsVisible)
+                                        {
+                                            string newPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                            if (!string.IsNullOrEmpty(newPath) && newPath != _previewWindow.CurrentFilePath)
+                                            {
+                                                _previewWindow.ShowFile(newPath);
+                                            }
+                                        }
+                                    };
+                                    navTimer.Start();
+                                }
                             }
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("HookCallback EXCEPTION: " + ex);
             }
 
             return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
