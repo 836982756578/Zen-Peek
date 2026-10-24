@@ -2,4 +2,5 @@ bin/
 obj/
 *.user
 *.suo
-crash.log
+*.log
+*.zip
