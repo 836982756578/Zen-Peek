@@ -24,11 +24,16 @@ namespace ZenPeek
         private TextBlock _titleBlock;
         private TextBlock _infoBlock;
 
+        public string CurrentFilePath
+        {
+            get { return _currentFilePath; }
+        }
+
         public PreviewWindow()
         {
             Title = "Zen Peek Önizleme";
-            Width = 720;
-            Height = 520;
+            Width = 740;
+            Height = 540;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -48,7 +53,23 @@ namespace ZenPeek
 
             Deactivated += (s, e) =>
             {
-                ClosePreview();
+                // Only close if user switched completely away to another application (e.g., Chrome, Word)
+                // Keep open while user navigates inside File Explorer or Desktop
+                try
+                {
+                    IntPtr fg = NativeMethods.GetForegroundWindow();
+                    if (fg != IntPtr.Zero)
+                    {
+                        string cls = NativeMethods.GetClassName(fg);
+                        bool isExplorerOrDesktop = cls == "CabinetWClass" || cls == "ExploreWClass" ||
+                                                  cls == "Progman" || cls == "WorkerW";
+                        if (!isExplorerOrDesktop)
+                        {
+                            ClosePreview();
+                        }
+                    }
+                }
+                catch { }
             };
         }
 
@@ -56,17 +77,17 @@ namespace ZenPeek
         {
             _rootBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(246, 20, 22, 30)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)),
+                Background = new SolidColorBrush(Color.FromArgb(246, 18, 18, 26)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(16),
                 Effect = new DropShadowEffect
                 {
                     Color = Colors.Black,
-                    BlurRadius = 28,
+                    BlurRadius = 32,
                     ShadowDepth = 6,
-                    Opacity = 0.7
+                    Opacity = 0.75
                 }
             };
 
@@ -111,16 +132,16 @@ namespace ZenPeek
             {
                 Content = "↗ Dosyayı Aç",
                 FontSize = 11,
-                Padding = new Thickness(10, 4, 10, 4),
-                Foreground = new SolidColorBrush(Color.FromRgb(100, 180, 255)),
-                Background = new SolidColorBrush(Color.FromArgb(35, 255, 255, 255)),
+                Padding = new Thickness(12, 5, 12, 5),
+                Foreground = new SolidColorBrush(Color.FromRgb(110, 190, 255)),
+                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
                 Margin = new Thickness(0, 0, 8, 0)
             };
             openBtn.Click += (s, e) =>
             {
-                if (!string.IsNullOrEmpty(_currentFilePath) && File.Exists(_currentFilePath))
+                if (!string.IsNullOrEmpty(_currentFilePath) && (File.Exists(_currentFilePath) || Directory.Exists(_currentFilePath)))
                 {
                     try { Process.Start(new ProcessStartInfo(_currentFilePath) { UseShellExecute = true }); } catch { }
                     ClosePreview();
@@ -130,10 +151,10 @@ namespace ZenPeek
             Button closeBtn = new Button
             {
                 Content = "✕",
-                Width = 26,
-                Height = 26,
-                FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(180, 185, 200)),
+                Width = 28,
+                Height = 28,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(190, 195, 210)),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand
@@ -157,7 +178,7 @@ namespace ZenPeek
             // Footer
             TextBlock footer = new TextBlock
             {
-                Text = "Kapatmak için Boşluk (Space) veya Esc tuşuna basın",
+                Text = "Kapatmak için Boşluk veya Esc | Gezinmek için Yön Tuşları (↑ ↓)",
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(130, 135, 150)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -199,7 +220,7 @@ namespace ZenPeek
 
                     if (IsImage(ext))
                     {
-                        ShowImagePreview(filePath);
+                        ShowImagePreview(filePath, fi);
                     }
                     else if (IsText(ext))
                     {
@@ -215,69 +236,87 @@ namespace ZenPeek
             {
                 _contentHost.Content = new TextBlock
                 {
-                    Text = "Önizleme yüklenirken hata oluştu: " + ex.Message,
-                    Foreground = Brushes.Red,
+                    Text = "Önizleme oluşturulamadı: " + ex.Message,
+                    Foreground = Brushes.Tomato,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
             }
 
-            Show();
+            if (!IsVisible)
+            {
+                Show();
+            }
             Activate();
             Focus();
         }
 
         private bool IsImage(string ext)
         {
-            return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".bmp" || ext == ".gif" || ext == ".ico";
+            return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" ||
+                   ext == ".bmp" || ext == ".gif" || ext == ".ico" || ext == ".tiff" || ext == ".tif";
         }
 
         private bool IsText(string ext)
         {
-            return ext == ".txt" || ext == ".cs" || ext == ".py" || ext == ".js" || ext == ".json" ||
-                   ext == ".html" || ext == ".css" || ext == ".xml" || ext == ".md" || ext == ".log" ||
-                   ext == ".ini" || ext == ".bat" || ext == ".ps1" || ext == ".sql" || ext == ".yaml" || ext == ".yml";
+            return ext == ".txt" || ext == ".cs" || ext == ".py" || ext == ".js" || ext == ".ts" ||
+                   ext == ".jsx" || ext == ".tsx" || ext == ".json" || ext == ".html" || ext == ".htm" ||
+                   ext == ".css" || ext == ".scss" || ext == ".xml" || ext == ".md" || ext == ".log" ||
+                   ext == ".ini" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".sql" ||
+                   ext == ".yaml" || ext == ".yml" || ext == ".c" || ext == ".cpp" || ext == ".h" ||
+                   ext == ".hpp" || ext == ".java" || ext == ".go" || ext == ".rs" || ext == ".php" ||
+                   ext == ".rb" || ext == ".sh" || ext == ".cfg" || ext == ".conf" || ext == ".env" ||
+                   ext == ".toml";
         }
 
-        private void ShowImagePreview(string filePath)
+        private void ShowImagePreview(string filePath, FileInfo fi)
         {
-            BitmapImage bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.UriSource = new Uri(filePath, UriKind.Absolute);
-            bmp.EndInit();
-            bmp.Freeze();
-
-            _infoBlock.Text += string.Format(" • {0} x {1} px", bmp.PixelWidth, bmp.PixelHeight);
-
-            Image img = new Image
+            try
             {
-                Source = bmp,
-                Stretch = Stretch.Uniform,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                BitmapImage bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.UriSource = new Uri(filePath, UriKind.Absolute);
+                bmp.EndInit();
+                bmp.Freeze();
 
-            Border frame = new Border
+                _infoBlock.Text += string.Format(" • {0} x {1} px", bmp.PixelWidth, bmp.PixelHeight);
+
+                Image img = new Image
+                {
+                    Source = bmp,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+
+                Border frame = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
+                    CornerRadius = new CornerRadius(8),
+                    Child = img
+                };
+
+                _contentHost.Content = frame;
+            }
+            catch
             {
-                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
-                CornerRadius = new CornerRadius(8),
-                Child = img
-            };
-
-            _contentHost.Content = frame;
+                // Fallback to generic preview if WIC codec is not available
+                ShowGenericPreview(filePath, fi);
+            }
         }
 
         private void ShowTextPreview(string filePath)
         {
             string content;
-            using (StreamReader sr = new StreamReader(filePath, Encoding.UTF8, true))
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
             {
-                char[] buffer = new char[8192];
+                char[] buffer = new char[16384];
                 int read = sr.Read(buffer, 0, buffer.Length);
                 content = new string(buffer, 0, read);
-                if (!sr.EndOfStream) content += "\n\n... (Devamı için dosyayı açın)";
+                if (!sr.EndOfStream) content += "\n\n... (Devamı için '↗ Dosyayı Aç' butonuna tıklayın)";
             }
 
             TextBox tb = new TextBox
@@ -319,20 +358,46 @@ namespace ZenPeek
                 VerticalAlignment = VerticalAlignment.Center
             };
 
+            BitmapSource folderIcon = ShellHelper.GetFileLargeIcon(dirPath);
+            if (folderIcon != null)
+            {
+                sp.Children.Add(new Image
+                {
+                    Source = folderIcon,
+                    Width = 64,
+                    Height = 64,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+            }
+            else
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "📁",
+                    FontSize = 54,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+            }
+
             sp.Children.Add(new TextBlock
             {
-                Text = "📁",
-                FontSize = 64,
-                HorizontalAlignment = HorizontalAlignment.Center
+                Text = di.Name,
+                FontSize = 15,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 4)
             });
 
             sp.Children.Add(new TextBlock
             {
                 Text = di.FullName,
-                FontSize = 12,
+                FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(180, 185, 200)),
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0)
+                Margin = new Thickness(0, 0, 0, 10)
             });
 
             _contentHost.Content = sp;
@@ -346,12 +411,29 @@ namespace ZenPeek
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            sp.Children.Add(new TextBlock
+            BitmapSource icon = ShellHelper.GetFileLargeIcon(filePath);
+            if (icon != null)
             {
-                Text = "📄",
-                FontSize = 64,
-                HorizontalAlignment = HorizontalAlignment.Center
-            });
+                Image img = new Image
+                {
+                    Source = icon,
+                    Width = 64,
+                    Height = 64,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                sp.Children.Add(img);
+            }
+            else
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "📄",
+                    FontSize = 54,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+            }
 
             sp.Children.Add(new TextBlock
             {
@@ -360,7 +442,7 @@ namespace ZenPeek
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 12, 0, 4)
+                Margin = new Thickness(0, 4, 0, 4)
             });
 
             sp.Children.Add(new TextBlock
@@ -379,6 +461,7 @@ namespace ZenPeek
         {
             Hide();
             _contentHost.Content = null;
+            _currentFilePath = null;
         }
     }
 }

@@ -25,7 +25,17 @@ Masaüstünde veya Dosya Gezgini'nde herhangi bir dosyanın (Resim, Kod, Metin, 
 ## ⌨️ Kullanım
 1. Dosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya **tek tıklayın**.
 2. **`Boşluk (Space)`** tuşuna basın ➔ Önizleme anında açılır!
-3. Kapatmak için tekrar **`Boşluk`** veya **`Esc`** tuşuna basın.
+3. Önizleme açıkken **`Yukarı / Aşağı (↑ ↓)`** yön tuşlarıyla diğer dosyalar arasında gezinebilirsiniz.
+4. Kapatmak için tekrar **`Boşluk`**, **`Esc`** tuşuna veya penceredeki **`✕`** butonuna basın.
+
+---
+
+## ⚡ Yenilikler ve Akıllı Özellikler (v1.0.1)
+* 🗂️ **Windows 11 Sekmeli Gezgin (Tabs) Desteği:** Sekmeli gezginde doğru sekmedeki seçili dosyayı otomatik algılar.
+* 🖥️ **Masaüstü Entegrasyonu:** Masaüstündeki simgeler için tam ve kararlı seçim tespiti.
+* 🔄 **Yön Tuşlarıyla Gezinme:** Önizleme penceresini kapatmadan klasör içindeki fotoğraflar veya belgeler arasında hızlıca geçiş yapabilme.
+* ✍️ **Akıllı Metin Algılama:** Arama kutusuna veya yeniden adlandırma (F2) alanına yazı yazarken boşluk tuşuna müdahale etmez.
+* 🎨 **Gerçek Sistem Simgeleri:** Önizlenen dosya veya klasörün yüksek çözünürlüklü Windows simgesini doğrudan gösterir.
 
 ---
 

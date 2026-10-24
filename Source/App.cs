@@ -30,7 +30,7 @@ namespace ZenPeek
             if (!createdNew)
             {
                 System.Windows.MessageBox.Show(
-                    "Zen Peek zaten arka planda çalışıyor!\nDosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya tıklayıp Boşluk (Space) tuşuna basarak anında önizleme yapabilirsiniz.\n\nGeliştirici: Serkan ŞENTÜRK",
+                    "Zen Peek zaten arka planda çalışıyor!\n\nDosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya tıklayıp Boşluk (Space) tuşuna basarak anında önizleme yapabilirsiniz.\n\nGeliştirici: Serkan ŞENTÜRK",
                     "Zen Peek",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -81,22 +81,117 @@ namespace ZenPeek
 
                 if (vkCode == NativeMethods.VK_SPACE)
                 {
-                    // If preview window is open, close it
+                    // 1. If preview window is open, close it (toggle behavior)
                     if (_previewWindow != null && _previewWindow.IsVisible)
                     {
                         Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
                         return (IntPtr)1; // Suppress space
                     }
 
-                    // Check if Explorer or Desktop has focus
-                    string selectedPath = ShellHelper.GetSelectedFilePath();
-                    if (!string.IsNullOrEmpty(selectedPath))
+                    // 2. Check if Explorer or Desktop has focus
+                    IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
+                    if (fgHwnd != IntPtr.Zero)
                     {
-                        Dispatcher.BeginInvoke(new Action(() =>
+                        string className = NativeMethods.GetClassName(fgHwnd);
+                        bool isDesktop = className == "Progman" || className == "WorkerW";
+                        bool isExplorer = className == "CabinetWClass" || className == "ExploreWClass";
+
+                        if (!isDesktop && !isExplorer)
                         {
-                            _previewWindow.ShowFile(selectedPath);
-                        }));
-                        return (IntPtr)1; // Suppress space
+                            IntPtr root = NativeMethods.GetAncestor(fgHwnd, NativeMethods.GA_ROOT);
+                            if (root != IntPtr.Zero && root != fgHwnd)
+                            {
+                                string rootClass = NativeMethods.GetClassName(root);
+                                if (rootClass == "CabinetWClass" || rootClass == "ExploreWClass")
+                                {
+                                    isExplorer = true;
+                                    fgHwnd = root;
+                                }
+                                else if (rootClass == "Progman" || rootClass == "WorkerW")
+                                {
+                                    isDesktop = true;
+                                    fgHwnd = root;
+                                }
+                            }
+                        }
+
+                        if (isDesktop || isExplorer)
+                        {
+                            // If user is editing text (typing in search bar, renaming a file with F2), do not intercept
+                            if (!NativeMethods.IsUserEditingText(fgHwnd))
+                            {
+                                string selectedPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                if (!string.IsNullOrEmpty(selectedPath))
+                                {
+                                    Dispatcher.BeginInvoke(new Action(() =>
+                                    {
+                                        _previewWindow.ShowFile(selectedPath);
+                                    }));
+                                    return (IntPtr)1; // Suppress space
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (vkCode == NativeMethods.VK_ESCAPE)
+                {
+                    if (_previewWindow != null && _previewWindow.IsVisible)
+                    {
+                        Dispatcher.BeginInvoke(new Action(() => _previewWindow.ClosePreview()));
+                        return (IntPtr)1; // Suppress escape
+                    }
+                }
+                else if (vkCode == NativeMethods.VK_UP || vkCode == NativeMethods.VK_DOWN ||
+                         vkCode == NativeMethods.VK_LEFT || vkCode == NativeMethods.VK_RIGHT)
+                {
+                    if (_previewWindow != null && _previewWindow.IsVisible)
+                    {
+                        // File navigation with arrow keys while preview window is active
+                        IntPtr fgHwnd = NativeMethods.GetForegroundWindow();
+                        if (fgHwnd != IntPtr.Zero)
+                        {
+                            string className = NativeMethods.GetClassName(fgHwnd);
+                            bool isDesktop = className == "Progman" || className == "WorkerW";
+                            bool isExplorer = className == "CabinetWClass" || className == "ExploreWClass";
+
+                            if (!isDesktop && !isExplorer)
+                            {
+                                IntPtr root = NativeMethods.GetAncestor(fgHwnd, NativeMethods.GA_ROOT);
+                                if (root != IntPtr.Zero)
+                                {
+                                    string rootClass = NativeMethods.GetClassName(root);
+                                    if (rootClass == "CabinetWClass" || rootClass == "ExploreWClass")
+                                    {
+                                        isExplorer = true;
+                                        fgHwnd = root;
+                                    }
+                                    else if (rootClass == "Progman" || rootClass == "WorkerW")
+                                    {
+                                        isDesktop = true;
+                                        fgHwnd = root;
+                                    }
+                                }
+                            }
+
+                            if (isDesktop || isExplorer)
+                            {
+                                System.Windows.Threading.DispatcherTimer navTimer = new System.Windows.Threading.DispatcherTimer();
+                                navTimer.Interval = TimeSpan.FromMilliseconds(75);
+                                navTimer.Tick += (s, e) =>
+                                {
+                                    navTimer.Stop();
+                                    if (_previewWindow != null && _previewWindow.IsVisible)
+                                    {
+                                        string newPath = ShellHelper.GetSelectedFilePath(fgHwnd, isDesktop);
+                                        if (!string.IsNullOrEmpty(newPath) && newPath != _previewWindow.CurrentFilePath)
+                                        {
+                                            _previewWindow.ShowFile(newPath);
+                                        }
+                                    }
+                                };
+                                navTimer.Start();
+                            }
+                        }
                     }
                 }
             }
@@ -110,6 +205,11 @@ namespace ZenPeek
             _trayIcon.Text = "Zen Peek - Hızlı Önizleme (Space) | Serkan ŞENTÜRK";
             _trayIcon.Icon = LoadAppIcon();
             _trayIcon.Visible = true;
+
+            _trayIcon.DoubleClick += (s, e) =>
+            {
+                _trayIcon.ShowBalloonTip(3000, "Zen Peek ☯️", "Dosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya tıklayıp Boşluk (Space) tuşuna basarak önizleme yapabilirsiniz.", ToolTipIcon.Info);
+            };
 
             ContextMenuStrip menu = new ContextMenuStrip();
 
@@ -149,15 +249,18 @@ namespace ZenPeek
             aboutItem.Click += (s, e) =>
             {
                 System.Windows.MessageBox.Show(
-                    "Zen Peek - Hızlı Dosya Önizleme v1.0.0\n\n" +
+                    "Zen Peek - Hızlı Dosya Önizleme v1.0.1\n\n" +
                     "🌟 Geliştirici: Serkan ŞENTÜRK\n" +
                     "Telif Hakkı: © 2026 Serkan ŞENTÜRK. Tüm Hakları Saklıdır.\n\n" +
-                    "macOS QuickLook özelliğini Windows'a getiren araç.\n" +
+                    "macOS QuickLook özelliğini Windows 10/11'e getiren araç.\n" +
                     "Masaüstünde veya Dosya Gezgini'nde herhangi bir dosyaya tıklayıp\n" +
                     "Boşluk (Space) tuşuna bastığınızda dosyayı anında önizler.\n\n" +
                     "• Görseller, Kodlar, Metinler, Klasörler ve Medyalar\n" +
+                    "• Windows 11 Sekmeli Gezgin (Tabs) Tam Uyumluluğu\n" +
+                    "• Masaüstü Önizleme Desteği\n" +
+                    "• Yön Tuşlarıyla (↑ ↓) Dosyalar Arasında Gezinme\n" +
                     "• 100% Bağımsız ve Taşınabilir (Zero-Install Portable)\n" +
-                    "• Ultra Düşük Bellek (~2 MB RAM)\n\n" +
+                    "• Ultra Düşük Bellek (~2-3 MB RAM)\n\n" +
                     "GitHub: https://github.com/836982756578/Zen-Peek",
                     "Zen Peek Hakkında",
                     MessageBoxButton.OK,
@@ -172,6 +275,13 @@ namespace ZenPeek
             menu.Items.Add(exitItem);
 
             _trayIcon.ContextMenuStrip = menu;
+
+            // Show initial balloon tip to inform user
+            try
+            {
+                _trayIcon.ShowBalloonTip(2500, "Zen Peek Aktif ☯️", "Masaüstünde veya Dosya Gezgini'nde bir dosyayı seçip Boşluk (Space) tuşuna basın!", ToolTipIcon.Info);
+            }
+            catch { }
         }
 
         private System.Drawing.Icon LoadAppIcon()
@@ -214,8 +324,9 @@ namespace ZenPeek
 
             if (_mutex != null)
             {
-                _mutex.ReleaseMutex();
+                try { _mutex.ReleaseMutex(); } catch { }
                 _mutex.Dispose();
+                _mutex = null;
             }
 
             Shutdown();
