@@ -15,27 +15,35 @@ Masaüstünde veya Dosya Gezgini'nde herhangi bir dosyanın (Resim, Kod, Metin, 
 ---
 
 ## 🚀 Desteklenen Dosya Formatları
-* 🖼️ **Görseller:** JPG, PNG, WebP, GIF, BMP, ICO (Çözünürlük ve boyut detaylarıyla)
-* 💻 **Kod ve Metin:** TXT, CS, PY, JS, HTML, CSS, JSON, XML, MD, LOG, INI, SQL, YAML (Satır numaralı ve monospaced)
-* 📁 **Klasörler:** İçindeki dosya sayısı ve alt klasör özetleri
+* 📁 **Klasör İçerikleri:** Klasör içindeki alt klasör ve dosyaların detaylı, şık ve boyutlu listesi
+* 📦 **ZIP Arşivleri (.zip):** Sıkıştırılmış arşiv içindeki dosyalar, açık/sıkıştırılmış boyutlar ve tarihler
+* 📘 **Word Belgeleri (.docx, .rtf):** Paragrafları, başlıkları, madde imlerini ve tabloları doğrudan okuma
+* 📊 **Excel Tabloları (.xlsx, .csv):** Hücreleri, satırları ve sütunları koyu mod ızgarada anında inceleme
+* 📑 **PDF Belgeleri (.pdf):** Sayfa sayısı, başlık, yazar bilgileri ve metin içeriği önizleme
+* 🖼️ **Görseller:** JPG, PNG, WebP, GIF, BMP, ICO, TIFF (Çözünürlük ve boyut detaylarıyla)
+* 💻 **Kod ve Metin (30+ format):** TXT, CS, PY, JS, TS, HTML, CSS, JSON, XML, MD, LOG, INI, SQL, YAML vb.
 * 📑 **Diğer Tüm Dosyalar:** Dosya tipi, boyutu, son değiştirilme tarihi ve doğrudan varsayılan programla açma butonu
 
 ---
 
 ## ⌨️ Kullanım
-1. Dosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya **tek tıklayın**.
+1. Dosya Gezgini'nde veya Masaüstünde herhangi bir dosyaya veya klasöre **tek tıklayın**.
 2. **`Boşluk (Space)`** tuşuna basın ➔ Önizleme anında açılır!
 3. Önizleme açıkken **`Yukarı / Aşağı (↑ ↓)`** yön tuşlarıyla diğer dosyalar arasında gezinebilirsiniz.
 4. Kapatmak için tekrar **`Boşluk`**, **`Esc`** tuşuna veya penceredeki **`✕`** butonuna basın.
 
 ---
 
-## ⚡ Yenilikler ve Akıllı Özellikler (v1.0.1)
+## ⚡ Yenilikler ve Zengin Önizleme Özellikleri (v1.1.0)
+* 📁 **Canlı Klasör İçeriği Gezgini:** Klasör seçildiğinde içindeki alt klasörleri ve dosyaları boyut ve tarihlerle anında listeler.
+* 📦 **ZIP Arşivi İçi Önizleme:** Arşivleri dışa aktarmadan içindeki dosya ağacını ve sıkıştırma oranlarını gösterir.
+* 📘 **Doğrudan Word (.docx) Okuyucu:** Microsoft Word yüklü olmasa bile belgelerin metinlerini, başlıklarını ve tablolarını saniyeler içinde okur.
+* 📊 **Yerleşik Excel (.xlsx) Tablo Görüntüleyici:** Tabloları sütun ve satır düzeninde temiz bir koyu tema ızgarada sunar.
+* 📑 **PDF Sayfa ve İçerik Özeti:** PDF'lerin sayfa sayısını, meta verilerini ve metin içeriğini açar.
 * 🗂️ **Windows 11 Sekmeli Gezgin (Tabs) Desteği:** Sekmeli gezginde doğru sekmedeki seçili dosyayı otomatik algılar.
 * 🖥️ **Masaüstü Entegrasyonu:** Masaüstündeki simgeler için tam ve kararlı seçim tespiti.
 * 🔄 **Yön Tuşlarıyla Gezinme:** Önizleme penceresini kapatmadan klasör içindeki fotoğraflar veya belgeler arasında hızlıca geçiş yapabilme.
 * ✍️ **Akıllı Metin Algılama:** Arama kutusuna veya yeniden adlandırma (F2) alanına yazı yazarken boşluk tuşuna müdahale etmez.
-* 🎨 **Gerçek Sistem Simgeleri:** Önizlenen dosya veya klasörün yüksek çözünürlüklü Windows simgesini doğrudan gösterir.
 
 ---
 

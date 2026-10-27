@@ -295,18 +295,19 @@ namespace ZenPeek
             aboutItem.Click += (s, e) =>
             {
                 System.Windows.MessageBox.Show(
-                    "Zen Peek - Hızlı Dosya Önizleme v1.0.1\n\n" +
+                    "Zen Peek - Hızlı Dosya Önizleme v1.1.0\n\n" +
                     "🌟 Geliştirici: Serkan ŞENTÜRK\n" +
                     "Telif Hakkı: © 2026 Serkan ŞENTÜRK. Tüm Hakları Saklıdır.\n\n" +
                     "macOS QuickLook özelliğini Windows 10/11'e getiren araç.\n" +
                     "Masaüstünde veya Dosya Gezgini'nde herhangi bir dosyaya tıklayıp\n" +
                     "Boşluk (Space) tuşuna bastığınızda dosyayı anında önizler.\n\n" +
-                    "• Görseller, Kodlar, Metinler, Klasörler ve Medyalar\n" +
-                    "• Windows 11 Sekmeli Gezgin (Tabs) Tam Uyumluluğu\n" +
-                    "• Masaüstü Önizleme Desteği\n" +
-                    "• Yön Tuşlarıyla (↑ ↓) Dosyalar Arasında Gezinme\n" +
-                    "• 100% Bağımsız ve Taşınabilir (Zero-Install Portable)\n" +
-                    "• Ultra Düşük Bellek (~2-3 MB RAM)\n\n" +
+                    "• 📁 Klasör İçerikleri: Klasör içindeki alt klasör ve dosyaların detaylı listesi\n" +
+                    "• 📦 ZIP Arşivleri: Sıkıştırılmış arşiv içindeki dosyaları ve boyutları inceleme\n" +
+                    "• 📘 Word Belgeleri (.docx): Paragraf, başlık ve tablo metinlerini doğrudan okuma\n" +
+                    "• 📊 Excel Tabloları (.xlsx, .csv): Hücre ve satırları koyu mod ızgarada görme\n" +
+                    "• 📑 PDF Belgeleri: Sayfa sayısı, başlık, yazar ve metin önizleme\n" +
+                    "• 🖼️ Görseller ve 💻 30+ Kod/Metin formatı\n" +
+                    "• 100% Bağımsız ve Taşınabilir (Zero-Install Portable, ~2 MB RAM)\n\n" +
                     "GitHub: https://github.com/836982756578/Zen-Peek",
                     "Zen Peek Hakkında",
                     MessageBoxButton.OK,

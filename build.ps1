@@ -23,6 +23,10 @@ $references = @(
     "System.Drawing.dll",
     "System.Windows.Forms.dll",
     "System.Xaml.dll",
+    "System.Xml.dll",
+    "System.Xml.Linq.dll",
+    "System.IO.Compression.dll",
+    "System.IO.Compression.FileSystem.dll",
     (Join-Path $wpfPath "WindowsBase.dll"),
     (Join-Path $wpfPath "PresentationCore.dll"),
     (Join-Path $wpfPath "PresentationFramework.dll")
